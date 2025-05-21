@@ -1,0 +1,143 @@
+
+You want to create a clickable link that, when clicked, sends the current geolocation coordinates via SMS to the phone number +91 9466574013. However, web browsers cannot send SMS messages directly by themselves due to security and platform limitations.
+
+The common approach on mobile devices is to use an SMS URI scheme (sms:) with a predefined message containing the location. However, the device user will need to manually send it via their SMS app — the browser can't send SMS automatically.
+
+So the solution:
+- Create a clickable link or button.
+- When clicked, get the current location coordinates.
+- Then open the SMS app on the device with the phone number and the message pre-filled with the location.
+- User has to tap "Send" in their SMS app.
+
+This works on mobile devices that support sms: URIs.
+
+I'll create a single HTML file that:
+- Has a stylish clickable link "Send My Location"
+- On click, uses Geolocation API to get current location
+- If successful, it builds an sms: link with body containing location info and phone number +91 9466574013
+- It then redirects the browser to that sms: URI to open SMS app
+
+If geolocation is not supported or denied, display error message on the page.
+
+This solution is the closest we can do purely client-side.
+
+I will embed CSS and JavaScript into a single HTML file with modern styling.
+
+Now I will proceed with the implementation.
+
+
+`send-location-sms.html`
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Send Location via SMS</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%);
+      color: #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      flex-direction: column;
+      text-align: center;
+      padding: 0 20px;
+    }
+    a#sendLocationLink {
+      font-size: 1.4rem;
+      color: #fff;
+      background-color: #ff3f6c;
+      text-decoration: none;
+      padding: 15px 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(255, 63, 108, 0.5);
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.3s ease;
+      display: inline-block;
+      margin-bottom: 1.5rem;
+    }
+    a#sendLocationLink:hover {
+      background-color: #e03664;
+    }
+    #message {
+      font-size: 1.2rem;
+      min-height: 1.5em;
+      color: #222;
+      background: rgba(255 255 255 / 0.7);
+      padding: 12px 18px;
+      border-radius: 10px;
+      max-width: 400px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      user-select: text;
+    }
+  </style>
+</head>
+<body>
+  <a id="sendLocationLink" href="#">Send My Current Location via SMS</a>
+  <div id="message" aria-live="polite" role="status"></div>
+
+  <script>
+    const sendLink = document.getElementById('sendLocationLink');
+    const messageDiv = document.getElementById('message');
+    const phoneNumber = '+919466574013'; // formatted without spaces for sms uri
+
+    sendLink.addEventListener('click', (event) => {
+      event.preventDefault();
+
+      if (!navigator.geolocation) {
+        messageDiv.textContent = 'Geolocation is not supported by your browser.';
+        return;
+      }
+
+      messageDiv.textContent = 'Getting your location…';
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude.toFixed(6);
+          const lon = position.coords.longitude.toFixed(6);
+          const smsBody = encodeURIComponent(
+            `Hello, here is my current location:\nhttps://maps.google.com/?q=${lat},${lon}`
+          );
+          // Construct sms URI with phone number and body
+          // Some devices require &body=, some support ?body=
+          const smsURI = `sms:${phoneNumber}?body=${smsBody}`;
+
+          messageDiv.textContent = 'Opening SMS app with your location... If nothing happens, make sure you are on a device that can handle SMS links.';
+
+          // Redirect to sms URI to open SMS app
+          window.location.href = smsURI;
+
+        },
+        (error) => {
+          switch(error.code) {
+            case error.PERMISSION_DENIED:
+              messageDiv.textContent = 'Permission denied. Please allow location access.';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              messageDiv.textContent = 'Location information is unavailable.';
+              break;
+            case error.TIMEOUT:
+              messageDiv.textContent = 'The request to get your location timed out.';
+              break;
+            default:
+              messageDiv.textContent = 'An unknown error occurred while fetching location.';
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
+    });
+  </script>
+</body>
+</html>
+
+```
